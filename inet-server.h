@@ -8,7 +8,6 @@ class InetServer : public Server {
 
 public:
     InetServer(int);
-    ~InetServer();
 
 protected:
     void create();

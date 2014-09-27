@@ -4,21 +4,20 @@
 #include "server.h"
 #include "util.h"
 #include "message.h"
+#include "message-list.h"
 
 #include <string>
 #include <vector>
 #include <sstream>
 #include <map>
+#include <memory>
 
 using Util::Debug;
 using namespace std;
 
 class Command {
     public:
-        Command();
-        ~Command();
-
-        virtual string respond(vector<string>*, map<string, vector<Message> >*);
+        virtual string respond(vector<string>*, MessageList*);
 };
 
 class PutCommand : public Command {
@@ -26,7 +25,7 @@ class PutCommand : public Command {
         PutCommand(int);
         ~PutCommand();
 
-        string respond(vector<string>*, map<string, vector<Message> >*);
+        string respond(vector<string>*, MessageList*);
 
     private:
         string get_request(int, int);
@@ -38,7 +37,7 @@ class ListCommand : public Command {
         ListCommand();
         ~ListCommand();
 
-        string respond(vector<string>*, map<string, vector<Message> >*);
+        string respond(vector<string>*, MessageList*);
 };
 
 class GetCommand : public Command {
@@ -46,7 +45,7 @@ class GetCommand : public Command {
         GetCommand();
         ~GetCommand();
 
-        string respond(vector<string>*, map<string, vector<Message> >*);
+        string respond(vector<string>*, MessageList*);
 };
 
 class ResetCommand : public Command {
@@ -54,5 +53,5 @@ class ResetCommand : public Command {
         ResetCommand();
         ~ResetCommand();
 
-        string respond(vector<string>*, map<string, vector<Message> >*);
+        string respond(vector<string>*, MessageList*);
 };

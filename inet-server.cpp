@@ -8,9 +8,6 @@ InetServer::InetServer(int port) {
     portStr_ = ss.str();
 }
 
-InetServer::~InetServer() {
-}
-
 void
 InetServer::create() {
     Debug("InetServer::create", "Creating server on port " + portStr_);

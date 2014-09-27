@@ -1,9 +1,7 @@
 
 #include "command.h"
 
-Command::Command() {}
-Command::~Command() {}
-string Command::respond(vector<string>* args, map<string, vector<Message> >* messages) {
+string Command::respond(vector<string>* args, MessageList* messages) {
     return "error Invalid command given\n";
 }
 
@@ -11,7 +9,7 @@ PutCommand::PutCommand(int client) {
     client_ = client;
 }
 PutCommand::~PutCommand() {}
-string PutCommand::respond(vector<string>* args, map<string, vector<Message> >* messages) {
+string PutCommand::respond(vector<string>* args, MessageList* messages) {
     Debug("PutCommand::respond", "Responding to request");
     ostringstream response;
     int size = args->size();
@@ -34,7 +32,7 @@ string PutCommand::respond(vector<string>* args, map<string, vector<Message> >* 
         string rest_of_request = get_request(client_, nremain);
         args->at(4).append(rest_of_request);
 
-        (*messages)[(args->at(1))].push_back(Message(args->at(2), args->at(4), nread + nremain));
+        messages->add(args->at(1), Message(args->at(2), args->at(4), nread + nremain));
         response << "OK\n";
     }
     Debug("PutCommand::respond", "Sending response: " + response.str());
@@ -89,7 +87,7 @@ string PutCommand::get_request(int client, int length) {
 
 ListCommand::ListCommand() {}
 ListCommand::~ListCommand() {}
-string ListCommand::respond(vector<string>* args, map<string, vector<Message> >* messages) {
+string ListCommand::respond(vector<string>* args, MessageList* messages) {
     Debug("ListCommand::respond", "Responding to request");
     ostringstream response;
     int size = args->size();
@@ -98,15 +96,15 @@ string ListCommand::respond(vector<string>* args, map<string, vector<Message> >*
         response << "error Invalid request (# of arguments)\n";
     }
     else {
-        if (messages->count(args->at(1)) == 0) {
+        int count = messages->count(args->at(1));
+        if (count == 0) {
             Debug("ListCommand::respond",  "Client requested messages for nonexistent user " + args->at(1));
             response << "error User " << args->at(1) << " does not exist\n";
         }
         else {
-            vector<Message> messageList = messages->at(args->at(1));
-            response << "list " << messageList.size() << "\n";
-            for (int i = 0; i < messageList.size(); ++i) {
-                Message m = messageList[i];
+            response << "list " << count << "\n";
+            for (int i = 0; i < count; ++i) {
+                Message m = messages->get(args->at(1), i);
                 response << i + 1 << " " << m.Subject() << "\n";
             }
         }
@@ -117,7 +115,7 @@ string ListCommand::respond(vector<string>* args, map<string, vector<Message> >*
 
 GetCommand::GetCommand() {}
 GetCommand::~GetCommand() {}
-string GetCommand::respond(vector<string>* args, map<string, vector<Message> >* messages) {
+string GetCommand::respond(vector<string>* args, MessageList* messages) {
     Debug("GetCommand::respond", "Responding to request");
     ostringstream response;
     int size = args->size();
@@ -126,21 +124,21 @@ string GetCommand::respond(vector<string>* args, map<string, vector<Message> >* 
         response << "error Invalid request (# of arguments)\n";
     }
     else {
-        if (messages->count(args->at(1)) == 0) {
+        int count = messages->count(args->at(1));
+        if (count == 0) {
             Debug("GetCommand::respond",  "Client requested message for nonexistent user " + args->at(1));
             response << "error User " << args->at(1) << " does not exist\n";
         }
         else {
-            vector<Message> messageList = messages->at(args->at(1));
             istringstream buffer(args->at(2));
             int index;
             buffer >> index;
-            if (messageList.size() <= index - 1) {
+            if (count <= index - 1) {
                 Debug("GetCommand::respond", "Client requested message out of range for user " + args->at(1));
                 response << "error Index " << index - 1 << " does not exist for user " << args->at(1) << "\n";
             }
             else {
-                Message m = messageList[index - 1];
+                Message m = messages->get(args->at(1), index - 1);
                 response << "message " <<  m.Subject() << " " << m.Length() << "\n" << m.Content();
             }
         }
@@ -151,7 +149,7 @@ string GetCommand::respond(vector<string>* args, map<string, vector<Message> >* 
 
 ResetCommand::ResetCommand() {}
 ResetCommand::~ResetCommand() {}
-string ResetCommand::respond(vector<string>* args, map<string, vector<Message> >* messages) {
+string ResetCommand::respond(vector<string>* args, MessageList* messages) {
     Debug("ResetCommand::respond", "Responding to request");
     messages->clear();
     string response = "OK\n";

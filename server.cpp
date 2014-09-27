@@ -3,15 +3,18 @@
 Server::Server() {
     // setup variables
     buflen_ = 12000;
-    buf_ = new char[buflen_+1];
-    messages_ = new map<string, vector<Message> >();
+    clients_ = new Buffer();
+    messages_ = new MessageList();
+    threads_ = new vector<thread>();
+    for (int i = 0; i < threadnum_; ++i) {
+        threads_->push_back(thread(&Server::run_thread, this));
+    }
 }
 
 Server::~Server() {
-    delete buf_;
-
-    messages_->clear();
+    delete clients_;
     delete messages_;
+    delete threads_;
 }
 
 void
@@ -31,6 +34,14 @@ void
 Server::close_socket() {
 }
 
+void Server::run_thread() {
+    while (true) {
+        int client = clients_->dequeue();
+        Debug("Server::run_thread", "Handling client");
+        handle(client);
+    }
+}
+
 void
 Server::serve() {
     Debug("Server::serve", "Polling for clients...");
@@ -39,12 +50,13 @@ Server::serve() {
     struct sockaddr_in client_addr;
     socklen_t clientlen = sizeof(client_addr);
 
-      // accept clients
+    // accept clients
     while ((client = accept(server_,(struct sockaddr *)&client_addr,&clientlen)) > 0) {
         stringstream ss;
         ss << client;
         Debug("Server::serve", "Client accepted " + ss.str());
-        handle(client);
+        clients_->enqueue(client);
+//        handle(client);
     }
     close_socket();
 }
@@ -83,7 +95,6 @@ Server::handle(int client) {
             else {
                 c = new Command();
             }
-            cout << "here" << endl;
             response = c->respond(args, messages_);
             delete c;
         }
@@ -113,12 +124,13 @@ Server::handle(int client) {
 
 string
 Server::get_request(int client) {
+    char* buf = new char[buflen_ + 1];
     stringstream ss;
     Debug("Server:get_request", "Receiving request header");
     string request = "";
     // read until we get a newline
     while (request.find("\n") == string::npos) {
-        int nread = recv(client,buf_,buflen_,0);
+        int nread = recv(client,buf,buflen_,0);
         ss << nread;
         Debug("Server::get_request", "recv'd " + ss.str() + " bytes");
         if (nread < 0) {
@@ -135,7 +147,7 @@ Server::get_request(int client) {
             return "";
         }
         // be sure to use append in case we have binary data
-        request.append(buf_,nread);
+        request.append(buf,nread);
     }
     Debug("Server:get_request", "Request header received");
     // a better server would cut off anything after the newline and
@@ -145,6 +157,7 @@ Server::get_request(int client) {
 
 string
 Server::get_request(int client, int length) {
+    char* buf = new char[buflen_ + 1];
     stringstream ss;
     ss << length;
     Debug("Server::get_request", "Receiving request body - length: " + ss.str());
@@ -154,7 +167,7 @@ Server::get_request(int client, int length) {
     while (nremain > 0) {
         ss.clear();
         ss.str("");
-        int nread = recv(client, buf_, 1024, 0);
+        int nread = recv(client, buf, buflen_, 0);
         ss << nread;
         Debug("Server::get_request", "recv'd " + ss.str() + " bytes");
         ss.clear();
@@ -182,7 +195,7 @@ Server::get_request(int client, int length) {
         }
 
         nremain -= nread;
-        request.append(buf_,nread);
+        request.append(buf,nread);
     }
     Debug("Server::get_request", "Received message request");
     return request;
